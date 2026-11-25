@@ -63,9 +63,20 @@ func _run() -> void:
 		if r.position.y < screen.y - 40.0 and (low == null or r.position.y > low.get_global_rect().position.y):
 			low = t
 	_check(low != null and low.get_global_rect().position.y > screen.y * 0.5, "a tile below the middle of the screen is hovered")
+	# (2026-11-25) The box waits a second on the card before it shows.
+	_check(is_equal_approx(page.card_hover_delay, 1.0), "the card details box waits 1 second")
+	page.card_hover_delay = 0.4
 	low.mouse_entered.emit()
-	await _settle(10)
-	_check(_popup_on_screen(), "its details box is wholly on screen")
+	await _settle(6)
+	_check(not page._hover_popup.visible, "hovering a card does not show the box at once")
+	low.mouse_exited.emit()
+	await create_timer(0.6).timeout
+	_check(not page._hover_popup.visible, "leaving before the wait is up shows nothing")
+	low.mouse_entered.emit()
+	await create_timer(0.6).timeout
+	await _settle(6)
+	_check(_popup_on_screen(), "resting on it brings the box up, wholly on screen")
+	page.card_hover_delay = 0.0
 	var zoomed: Array = page._hover_popup.find_children("*", "CardUI", true, false)
 	_check(zoomed.size() == 1 and zoomed[0]._card == low.get_meta("card") and zoomed[0].scale.x > page.CARD_TILE_SCALE,
 		"the box holds the hovered card itself, zoomed in")
@@ -135,6 +146,39 @@ func _run() -> void:
 		var big: TextureRect = page._hover_popup.find_child("Art", true, false)
 		_check(big != null and big.texture != null, "a mythic's details box is headed by its painting")
 		_check(_popup_on_screen(), "and sits wholly on screen")
+
+	print("--- buffs & debuffs ---")
+	var tab: Control = page.tab_container.get_node_or_null(page.STATUS_TAB_NAME)
+	_check(tab != null, "the Compendium has a Buffs & Debuffs tab")
+	page.tab_container.current_tab = tab.get_index()
+	await _settle(6)
+	var names: Array = []
+	var blank: Array = []
+	for t in _tiles(page._statuses_container):
+		names.append(t.get_meta("status"))
+		var d: Label = t.find_child("Desc", true, false)
+		if d == null or d.text.strip_edges() == "":
+			blank.append(t.get_meta("status"))
+	_check(names.size() == KeywordLegend.BUFFS.size() + KeywordLegend.DEBUFFS.size() and names.size() > 30,
+		"it lists the %d standard buffs and debuffs" % names.size())
+	var want_all := true
+	for n in ["Strengthen", "Attune", "Regen", "Keen", "Cold", "Frozen", "Burn", "Vulnerable"]:
+		want_all = want_all and n in names
+	_check(want_all, "Strengthen, Attune, Regen, Keen, Cold, Frozen, Burn and Vulnerable are there")
+	_check(blank.is_empty(), "each says what it does")
+	var one_offs := false
+	for n in names:
+		if "narashimha" in n.to_lower() or n in ["Polymorph", "Shield Ready", "Demonic Rage", "Lost", "Engrave"]:
+			one_offs = true
+	_check(not one_offs, "one-off item effects (Narashimha's and the like) are not listed")
+	page._statuses_search.text = "stre"
+	page._populate_statuses("stre")
+	await _settle(4)
+	var hits: Array = []
+	for t in _tiles(page._statuses_container):
+		if not t.is_queued_for_deletion():
+			hits.append(t.get_meta("status"))
+	_check(hits == ["Strengthen"], "the search narrows the list")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

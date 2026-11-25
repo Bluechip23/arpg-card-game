@@ -25,13 +25,20 @@ var _enemies_container: VBoxContainer
 var _enemies_scroll: ScrollContainer
 
 # Hover popup
+# Buffs & Debuffs tab
+var _statuses_search: LineEdit
+var _statuses_container: VBoxContainer
+
 var _hover_popup: PanelContainer = null
 var _hover_entry: Control = null   # the tile the popup is about (null: none hovered)
+var _hover_serial := 0             # bumped by every hover and leave: a waiting hover checks it is still the latest
+var card_hover_delay := 1.0        # seconds the mouse rests on a card before its details box shows
 
 # Card tiles still waiting for their face (built as they scroll into view).
 const CardUIScene = preload("res://scenes/cards/card_ui.tscn")
 const CARD_TILE_SCALE := 1.2       # the card in the Cards tab, over its hand size
 const CARD_TILE_PAD := Vector2(0, 12)   # some frames' foot ornaments hang below the card's box
+const CARD_TILE_GAP := Vector2i(26, 26)  # between cards (designer, 2026-11-25: 10 read as cramped)
 const CARD_FACES_PER_FRAME := 3    # a face costs tens of ms: a few a frame keeps scrolling smooth
 const CARD_FACE_REACH := 320.0     # build this far past the scroll's edges, ahead of the eye
 var _card_tiles_pending: Array = []
@@ -48,6 +55,7 @@ func _ready() -> void:
 	_build_cards_tab()
 	_build_items_tab()
 	_build_enemies_tab()
+	_build_statuses_tab()
 	_build_hover_popup()
 
 func _apply_styles() -> void:
@@ -219,8 +227,8 @@ func _populate_cards(filter: String) -> void:
 
 		# The cards themselves, as many across as the window holds.
 		var grid = HFlowContainer.new()
-		grid.add_theme_constant_override("h_separation", 10)
-		grid.add_theme_constant_override("v_separation", 10)
+		grid.add_theme_constant_override("h_separation", CARD_TILE_GAP.x)
+		grid.add_theme_constant_override("v_separation", CARD_TILE_GAP.y)
 		_cards_container.add_child(grid)
 
 		for card in cards:
@@ -319,10 +327,25 @@ func _process(_delta: float) -> void:
 	if _hover_popup and _hover_popup.visible:
 		_place_hover_popup()
 
-const CARD_ZOOM_SCALE := 1.9   # the hovered card, zoomed in inside its details box
+const CARD_ZOOM_SCALE := 2.2   # the hovered card, zoomed in inside its details box
 const CARD_ZOOM_INSET := Vector2(14, 14)
 
+## The details box comes up once the mouse has rested on a card for
+## card_hover_delay (designer, 2026-11-25: it was instant), so sweeping
+## across the cards does not flash a box at every one.
 func _on_card_entry_hovered(card: Card, entry: Control) -> void:
+	_hover_popup.visible = false
+	_hover_entry = entry
+	_hover_serial += 1
+	var serial := _hover_serial
+	if card_hover_delay > 0.0:
+		await get_tree().create_timer(card_hover_delay).timeout
+		if serial != _hover_serial or not is_instance_valid(entry):
+			return   # the mouse moved on meanwhile
+	_fill_card_popup(card)
+	_show_hover_popup(entry)
+
+func _fill_card_popup(card: Card) -> void:
 	_clear_hover_popup()
 
 	# The card itself, zoomed in, on the left of the box (designer,
@@ -346,13 +369,13 @@ func _on_card_entry_hovered(card: Card, entry: Control) -> void:
 
 	var name_lbl = Label.new()
 	name_lbl.text = card.card_name
-	name_lbl.add_theme_font_size_override("font_size", 18)
+	name_lbl.add_theme_font_size_override("font_size", 21)
 	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(name_lbl)
 
 	var type_lbl = Label.new()
 	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 13)
+	type_lbl.add_theme_font_size_override("font_size", 15)
 	match card.card_type:
 		Card.CardType.ATTACK:
 			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
@@ -375,69 +398,69 @@ func _on_card_entry_hovered(card: Card, entry: Control) -> void:
 		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
 	else:
 		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
-	cost_lbl.add_theme_font_size_override("font_size", 13)
+	cost_lbl.add_theme_font_size_override("font_size", 15)
 	cost_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	vbox.add_child(cost_lbl)
 
 	var rarity_lbl = Label.new()
 	rarity_lbl.text = "Rarity: %s" % card.get_rarity_name()
-	rarity_lbl.add_theme_font_size_override("font_size", 13)
+	rarity_lbl.add_theme_font_size_override("font_size", 15)
 	rarity_lbl.add_theme_color_override("font_color", card.get_rarity_color())
 	vbox.add_child(rarity_lbl)
 
 	if card.damage > 0:
 		var dmg_lbl = Label.new()
 		dmg_lbl.text = "Damage: %d" % card.damage
-		dmg_lbl.add_theme_font_size_override("font_size", 13)
+		dmg_lbl.add_theme_font_size_override("font_size", 15)
 		dmg_lbl.add_theme_color_override("font_color", Color(1.0, 0.5, 0.3))
 		vbox.add_child(dmg_lbl)
 
 	if card.block > 0:
 		var blk_lbl = Label.new()
 		blk_lbl.text = "Block: %d" % card.block
-		blk_lbl.add_theme_font_size_override("font_size", 13)
+		blk_lbl.add_theme_font_size_override("font_size", 15)
 		blk_lbl.add_theme_color_override("font_color", Color(0.4, 0.6, 1.0))
 		vbox.add_child(blk_lbl)
 
 	if card.heal_amount > 0:
 		var heal_lbl = Label.new()
 		heal_lbl.text = "Heal: %d" % card.heal_amount
-		heal_lbl.add_theme_font_size_override("font_size", 13)
+		heal_lbl.add_theme_font_size_override("font_size", 15)
 		heal_lbl.add_theme_color_override("font_color", Color(0.3, 0.9, 0.3))
 		vbox.add_child(heal_lbl)
 
 	if card.is_ranged:
 		var range_lbl = Label.new()
 		range_lbl.text = card.get_range_display()
-		range_lbl.add_theme_font_size_override("font_size", 13)
+		range_lbl.add_theme_font_size_override("font_size", 15)
 		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
 		vbox.add_child(range_lbl)
 
 	if card.is_aoe:
 		var aoe_lbl = Label.new()
 		aoe_lbl.text = "AOE: %s" % card.aoe_shape.capitalize()
-		aoe_lbl.add_theme_font_size_override("font_size", 13)
+		aoe_lbl.add_theme_font_size_override("font_size", 15)
 		aoe_lbl.add_theme_color_override("font_color", Color(0.9, 0.5, 0.2))
 		vbox.add_child(aoe_lbl)
 
 	if card.sticky > 0:
 		var sticky_lbl = Label.new()
 		sticky_lbl.text = "Sticky %d" % card.sticky
-		sticky_lbl.add_theme_font_size_override("font_size", 13)
+		sticky_lbl.add_theme_font_size_override("font_size", 15)
 		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		vbox.add_child(sticky_lbl)
 
 	if card.has_on_draw:
 		var od_lbl = Label.new()
 		od_lbl.text = "On-Draw effect"
-		od_lbl.add_theme_font_size_override("font_size", 13)
+		od_lbl.add_theme_font_size_override("font_size", 15)
 		od_lbl.add_theme_color_override("font_color", Color(0.5, 0.9, 0.5))
 		vbox.add_child(od_lbl)
 
 	if card.maintain_cost > 0:
 		var maintain_lbl = Label.new()
 		maintain_lbl.text = "Maintain: %dM" % card.maintain_cost
-		maintain_lbl.add_theme_font_size_override("font_size", 13)
+		maintain_lbl.add_theme_font_size_override("font_size", 15)
 		maintain_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 		vbox.add_child(maintain_lbl)
 
@@ -449,8 +472,8 @@ func _on_card_entry_hovered(card: Card, entry: Control) -> void:
 	desc_lbl.text = card.description
 	desc_lbl.fit_content = true
 	desc_lbl.scroll_active = false
-	desc_lbl.custom_minimum_size = Vector2(290, 0)
-	desc_lbl.add_theme_font_size_override("normal_font_size", 14)
+	desc_lbl.custom_minimum_size = Vector2(340, 0)
+	desc_lbl.add_theme_font_size_override("normal_font_size", 16)
 	vbox.add_child(desc_lbl)
 
 	# Keyword tooltips
@@ -461,7 +484,7 @@ func _on_card_entry_hovered(card: Card, entry: Control) -> void:
 
 		var kw_header = Label.new()
 		kw_header.text = "Keywords:"
-		kw_header.add_theme_font_size_override("font_size", 13)
+		kw_header.add_theme_font_size_override("font_size", 15)
 		kw_header.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 		vbox.add_child(kw_header)
 
@@ -471,12 +494,11 @@ func _on_card_entry_hovered(card: Card, entry: Control) -> void:
 			kw_label.text = "[color=#cc88ff]%s[/color]: %s" % [kw["keyword"], kw["definition"]]
 			kw_label.fit_content = true
 			kw_label.scroll_active = false
-			kw_label.custom_minimum_size = Vector2(290, 0)
-			kw_label.add_theme_font_size_override("normal_font_size", 13)
+			kw_label.custom_minimum_size = Vector2(340, 0)
+			kw_label.add_theme_font_size_override("normal_font_size", 15)
 			kw_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			vbox.add_child(kw_label)
 
-	_show_hover_popup(entry)
 
 # ============================================
 # ITEMS TAB
@@ -1036,6 +1058,133 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 	_show_hover_popup(entry)
 
 # ============================================
+# BUFFS & DEBUFFS TAB
+# ============================================
+# The standard statuses (KeywordLegend.BUFFS / DEBUFFS — the ones cards and
+# enemies deal in by name), each with its icon and what it does. One-off
+# effects an item makes up for itself (the Mane of Narashimha's, say) are
+# not listed (designer, 2026-11-25).
+
+const STATUS_TAB_NAME := "Buffs & Debuffs"
+const STATUS_TILE_MIN := Vector2(360, 76)
+const STATUS_ICON := Vector2(44, 44)
+const STATUS_BUFF_COLOR := Color(0.5, 1.0, 0.6)
+const STATUS_DEBUFF_COLOR := Color(1.0, 0.5, 0.5)
+
+func _build_statuses_tab() -> void:
+	var tab := Control.new()
+	tab.name = STATUS_TAB_NAME
+	tab_container.add_child(tab)
+
+	var vbox = VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tab.add_child(vbox)
+
+	_statuses_search = LineEdit.new()
+	_statuses_search.placeholder_text = "Search buffs and debuffs by name..."
+	_statuses_search.clear_button_enabled = true
+	_statuses_search.add_theme_font_size_override("font_size", 16)
+	_statuses_search.text_changed.connect(_populate_statuses)
+	vbox.add_child(_statuses_search)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vbox.add_child(scroll)
+
+	_statuses_container = VBoxContainer.new()
+	_statuses_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_statuses_container)
+
+	_populate_statuses("")
+
+func _populate_statuses(filter: String) -> void:
+	for child in _statuses_container.get_children():
+		child.queue_free()
+	var q := filter.strip_edges().to_lower()
+	for section in [["Buffs", KeywordLegend.BUFFS, STATUS_BUFF_COLOR], ["Debuffs", KeywordLegend.DEBUFFS, STATUS_DEBUFF_COLOR]]:
+		var rows: Array = []
+		for row in section[1]:
+			if q == "" or q in str(row[0]).to_lower():
+				rows.append(row)
+		if rows.is_empty():
+			continue
+		rows.sort_custom(func(a, b): return str(a[0]).to_lower() < str(b[0]).to_lower())
+
+		var header = Label.new()
+		header.text = "%s (%d)" % [section[0], rows.size()]
+		header.add_theme_font_size_override("font_size", 22)
+		header.add_theme_constant_override("outline_size", 4)
+		header.add_theme_color_override("font_color", section[2])
+		_statuses_container.add_child(header)
+		_statuses_container.add_child(HSeparator.new())
+
+		var grid = GridContainer.new()
+		grid.columns = 3
+		grid.add_theme_constant_override("h_separation", 8)
+		grid.add_theme_constant_override("v_separation", 8)
+		_statuses_container.add_child(grid)
+		for row in rows:
+			grid.add_child(_create_status_entry(row[0], KeywordLegend.text(row[0], row[1]), row[2]))
+
+		var spacer = Control.new()
+		spacer.custom_minimum_size = Vector2(0, 12)
+		_statuses_container.add_child(spacer)
+
+## A status's tile: its battle icon, its name and what it does (all on the
+## tile — nothing more to hover for).
+func _create_status_entry(status_name: String, desc: String, color: Color) -> PanelContainer:
+	var panel = PanelContainer.new()
+	panel.custom_minimum_size = STATUS_TILE_MIN
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.set_meta("status", status_name)
+	_style_tile(panel)
+
+	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 10)
+	panel.add_child(hbox)
+
+	var icon_box := ColorRect.new()
+	icon_box.custom_minimum_size = STATUS_ICON
+	icon_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon_box.color = Color(0, 0, 0, 0.35)
+	hbox.add_child(icon_box)
+	var tex: Texture2D = StatusIcons.get_icon(status_name)
+	if tex:
+		var pic := _item_picture(tex)
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon_box.add_child(pic)
+	else:
+		var letter := Label.new()
+		letter.text = status_name[0].to_upper()
+		letter.add_theme_font_size_override("font_size", 24)
+		letter.add_theme_color_override("font_color", color)
+		_centre_in(letter)
+		icon_box.add_child(letter)
+
+	var info = VBoxContainer.new()
+	info.add_theme_constant_override("separation", 2)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(info)
+
+	var name_lbl = Label.new()
+	name_lbl.text = status_name
+	name_lbl.add_theme_font_size_override("font_size", 16)
+	name_lbl.add_theme_color_override("font_color", color.lightened(0.25))
+	info.add_child(name_lbl)
+
+	var desc_lbl = Label.new()
+	desc_lbl.name = "Desc"
+	desc_lbl.text = desc
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_lbl.custom_minimum_size.x = 240
+	desc_lbl.add_theme_font_size_override("font_size", 13)
+	desc_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT)
+	info.add_child(desc_lbl)
+
+	return panel
+
+# ============================================
 # HOVER POPUP SYSTEM
 # ============================================
 
@@ -1085,6 +1234,7 @@ static func _centre_in(label: Label) -> void:
 func _clear_hover_popup() -> void:
 	# Detach the old details now (not at frame end) and drop the old size,
 	# so the popup grows to fit only the new entry's details.
+	_hover_serial += 1
 	for child in _hover_popup.get_children():
 		_hover_popup.remove_child(child)
 		child.queue_free()
@@ -1129,6 +1279,7 @@ func _place_hover_popup() -> void:
 	_hover_popup.global_position = Vector2(x, y)
 
 func _on_hover_exited() -> void:
+	_hover_serial += 1
 	_hover_entry = null
 	_hover_popup.visible = false
 
