@@ -268,10 +268,18 @@ func _create_card_entry(card: Card, type_color: Color) -> Control:
 ## Give a tile its card face (the tile must be in the tree: the face lays
 ## itself out on setup).
 func _build_card_face(tile: Control) -> void:
-	var card: Card = tile.get_meta("card")
+	_add_card_face(tile, tile.get_meta("card"), CARD_TILE_SCALE)
+	var plate = tile.get_node_or_null("Plate")
+	if plate:
+		plate.queue_free()
+
+## The card's real face at `sc` times its hand size, filling `holder` from
+## its top-left corner (the holder must be in the tree: the face lays itself
+## out on setup).
+func _add_card_face(holder: Control, card: Card, sc: float) -> CardUI:
 	var face: CardUI = CardUIScene.instantiate()
-	face.scale = Vector2.ONE * CARD_TILE_SCALE
-	tile.add_child(face)
+	face.scale = Vector2.ONE * sc
+	holder.add_child(face)
 	face.setup(card, 0)
 	# A hand card scales about its bottom centre (the fan); this one grows
 	# from its corner to fill the tile, and takes no clicks or hover lift.
@@ -283,9 +291,7 @@ func _build_card_face(tile: Control) -> void:
 	var kb = face.get_node_or_null("Panel/KeybindBadge")
 	if kb:
 		kb.visible = false
-	var plate = tile.get_node_or_null("Plate")
-	if plate:
-		plate.queue_free()
+	return face
 
 ## Faces for the tiles in (or about to scroll into) view, a few a frame.
 func _build_visible_card_faces() -> void:
@@ -313,12 +319,30 @@ func _process(_delta: float) -> void:
 	if _hover_popup and _hover_popup.visible:
 		_place_hover_popup()
 
+const CARD_ZOOM_SCALE := 1.9   # the hovered card, zoomed in inside its details box
+const CARD_ZOOM_INSET := Vector2(14, 14)
+
 func _on_card_entry_hovered(card: Card, entry: Control) -> void:
 	_clear_hover_popup()
 
+	# The card itself, zoomed in, on the left of the box (designer,
+	# 2026-11-24); its details and keyword rules on the right.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	_hover_popup.add_child(row)
+	var zoom := Control.new()
+	zoom.name = "CardZoom"
+	zoom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# (Room all round: frames' ornaments and the cost badges overhang the card's box.)
+	zoom.custom_minimum_size = Vector2(CardUI.CARD_W, CardUI.CARD_H) * CARD_ZOOM_SCALE \
+		+ CARD_ZOOM_INSET * 2.0 + CARD_TILE_PAD * CARD_ZOOM_SCALE
+	zoom.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(zoom)
+	_add_card_face(zoom, card, CARD_ZOOM_SCALE).position = CARD_ZOOM_INSET
+
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
-	_hover_popup.add_child(vbox)
+	row.add_child(vbox)
 
 	var name_lbl = Label.new()
 	name_lbl.text = card.card_name
@@ -487,18 +511,42 @@ func _build_items_tab() -> void:
 func _on_items_search_changed(new_text: String) -> void:
 	_populate_items(new_text)
 
+# The Items tab's weapon sections (keys beside the ItemType ones).
+const WEAPON_MELEE := "weapon_melee"
+const WEAPON_RANGED := "weapon_ranged"
+const WEAPON_MAGIC := "weapon_magic"
+const WEAPON_SHIELD := "weapon_shield"
+
+## Which Items-tab section an item is listed under.
+static func _item_group(item: ItemData):
+	if item.item_type != ItemData.ItemType.WEAPON:
+		return item.item_type
+	match item.weapon_subtype:
+		ItemData.WeaponSubtype.BOW:
+			return WEAPON_RANGED
+		ItemData.WeaponSubtype.WAND, ItemData.WeaponSubtype.TOME, ItemData.WeaponSubtype.STAFF:
+			return WEAPON_MAGIC
+		ItemData.WeaponSubtype.SHIELD:
+			return WEAPON_SHIELD
+	return WEAPON_MELEE
+
 func _populate_items(filter: String) -> void:
 	for child in _items_container.get_children():
 		child.queue_free()
 
-	# Group items by type
+	# Group items by type; weapons by how they fight (designer, 2026-11-24:
+	# they were one category) — the game's own lines: a bow is ranged; wand,
+	# book and staff are magic; shields; everything else is melee.
 	var type_order = [
-		ItemData.ItemType.WEAPON, ItemData.ItemType.HELM, ItemData.ItemType.CHEST,
+		WEAPON_MELEE, WEAPON_RANGED, WEAPON_MAGIC, WEAPON_SHIELD, ItemData.ItemType.HELM, ItemData.ItemType.CHEST,
 		ItemData.ItemType.BOOTS, ItemData.ItemType.RING, ItemData.ItemType.BELT,
 		ItemData.ItemType.GAUNTLETS, ItemData.ItemType.QUIVER
 	]
 	var type_names = {
-		ItemData.ItemType.WEAPON: "Weapons",
+		WEAPON_MELEE: "Melee Weapons",
+		WEAPON_RANGED: "Ranged Weapons",
+		WEAPON_MAGIC: "Magic Weapons",
+		WEAPON_SHIELD: "Shields",
 		ItemData.ItemType.HELM: "Helms",
 		ItemData.ItemType.CHEST: "Chest Armor",
 		ItemData.ItemType.BOOTS: "Boots",
@@ -508,7 +556,10 @@ func _populate_items(filter: String) -> void:
 		ItemData.ItemType.QUIVER: "Quivers",
 	}
 	var type_colors = {
-		ItemData.ItemType.WEAPON: Color(0.9, 0.4, 0.3),
+		WEAPON_MELEE: Color(0.9, 0.4, 0.3),
+		WEAPON_RANGED: Color(0.45, 0.8, 0.45),
+		WEAPON_MAGIC: Color(0.7, 0.5, 1.0),
+		WEAPON_SHIELD: Color(0.5, 0.65, 0.9),
 		ItemData.ItemType.HELM: Color(0.6, 0.6, 0.8),
 		ItemData.ItemType.CHEST: Color(0.5, 0.7, 0.5),
 		ItemData.ItemType.BOOTS: Color(0.6, 0.5, 0.3),
@@ -525,8 +576,9 @@ func _populate_items(filter: String) -> void:
 	for item in _all_items:
 		if filter.length() > 0 and filter.to_lower() not in item.item_name.to_lower():
 			continue
-		if item.item_type in type_groups:
-			type_groups[item.item_type].append(item)
+		var group = _item_group(item)
+		if group in type_groups:
+			type_groups[group].append(item)
 
 	for item_type in type_order:
 		var items = type_groups[item_type]
@@ -553,7 +605,7 @@ func _populate_items(filter: String) -> void:
 		_items_container.add_child(grid)
 
 		for item in items:
-			var item_panel = _create_item_entry(item, type_colors.get(item.item_type, Color.WHITE))
+			var item_panel = _create_item_entry(item, type_colors.get(item_type, Color.WHITE))
 			grid.add_child(item_panel)
 
 		var spacer = Control.new()

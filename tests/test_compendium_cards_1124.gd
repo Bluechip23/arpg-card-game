@@ -66,6 +66,9 @@ func _run() -> void:
 	low.mouse_entered.emit()
 	await _settle(10)
 	_check(_popup_on_screen(), "its details box is wholly on screen")
+	var zoomed: Array = page._hover_popup.find_children("*", "CardUI", true, false)
+	_check(zoomed.size() == 1 and zoomed[0]._card == low.get_meta("card") and zoomed[0].scale.x > page.CARD_TILE_SCALE,
+		"the box holds the hovered card itself, zoomed in")
 	low.mouse_exited.emit()
 
 	# Every card, hovered at the bottom edge: the box still fits.
@@ -84,6 +87,18 @@ func _run() -> void:
 	print("--- mythic items ---")
 	page.tab_container.current_tab = 1
 	await _settle(6)
+	var heads: Array = []
+	for child in page._items_container.get_children():
+		if child is Label:
+			heads.append(child.text.get_slice(" (", 0))
+	_check(heads.slice(0, 4) == ["Melee Weapons", "Ranged Weapons", "Magic Weapons", "Shields"] and not ("Weapons" in heads),
+		"weapons are listed as melee, ranged, magic and shields")
+	var groups := {}
+	for it in page._all_items:
+		groups[it.item_name] = page._item_group(it)
+	_check(groups.get("Long Bow") == page.WEAPON_RANGED and groups.get("Magic Staff") == page.WEAPON_MAGIC
+		and groups.get("Fire Book") == page.WEAPON_MAGIC and groups.get("Buckler") == page.WEAPON_SHIELD
+		and groups.get("Wooden Sword") == page.WEAPON_MELEE, "a bow, a staff, a book, a shield and a sword each land in their section")
 	var mythics := 0
 	var bare: Array = []
 	var plain_with_art := 0
